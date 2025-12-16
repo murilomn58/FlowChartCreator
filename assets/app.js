@@ -839,13 +839,25 @@ function getPortPos(n, portType, idx){
 
   function attachHandlers(){
     // Captura cliques para o modo "clique-para-conectar" (roda antes dos handlers dos nodes)
-    canvasWrap.addEventListener('pointerdown', (ev) => {
-      if(connecting && connecting.mode === 'click'){
-        ev.preventDefault();
-        ev.stopPropagation();
-        handleConnectClick(ev);
-      }
-    }, true);
+// IMPORTANTE: não bloquear arrastar/pan quando o clique NÃO for em um alvo de conexão.
+canvasWrap.addEventListener('pointerdown', (ev) => {
+  if(connecting && connecting.mode === 'click'){
+    const t = ev.target;
+    const hitNode = t?.closest?.('.node');
+    const hitIn = t?.closest?.('.port[data-port="in"]');
+    const hitOut = t?.closest?.('.port[data-port="out"]');
+    const hitQuick = t?.closest?.('.quickAdd');
+    // Só intercepta se o usuário clicou em algo que faz parte do fluxo de conexão.
+    if(hitNode || hitIn || hitOut || hitQuick){
+      ev.preventDefault();
+      ev.stopPropagation();
+      handleConnectClick(ev);
+      return;
+    }
+    // Clique no vazio: cancela modo conectar e deixa o evento seguir (pan/drag normal)
+    cancelConnection(null);
+  }
+}, true);
 
     canvasWrap.addEventListener('pointerdown', (ev) => {
       if(ev.target === canvasWrap || ev.target === board || ev.target === svg) clearSelection();
