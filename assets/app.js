@@ -7,7 +7,9 @@
   let selectedNodeId = null;
   let selectedEdgeId = null;
   let draggingNode = null;
+  let dragCandidate = null;
   let connecting = null;
+  const DRAG_THRESHOLD = 8;
 
   let view = {
     x: state.meta?.view?.x ?? 0,
@@ -223,6 +225,7 @@
       const icon = target?.closest?.('.iconBtn');
       const quick = target?.closest?.('.quickAdd');
       const isEditing = target?.classList?.contains('nodeTitle') || target?.classList?.contains('nodeDesc');
+      const isMetaChip = target?.closest?.('.metaChip[data-editable="true"]');
 
       if(icon){
         const action = icon.getAttribute('data-action');
@@ -239,9 +242,14 @@
       }
 
       if(isPort){
-        const portType = target.getAttribute('data-port');
-        const portIdx = parseInt(target.getAttribute('data-idx') || '0', 10);
-        if(portType === 'out') startConnection(ev, n.id, portIdx, 'click');
+        ev.stopPropagation();
+        // Conexão apenas via botão "+"
+        return;
+      }
+
+      if(isMetaChip){
+        selectNode(n.id);
+        ev.stopPropagation();
         return;
       }
 
@@ -696,6 +704,7 @@ function refreshSelectionUI(){
     canvasWrap.addEventListener('pointerdown', (ev) => {
       if(ev.target === canvasWrap || ev.target === board || ev.target === svg) clearSelection();
       hideChipMenu();
+      dragCandidate = null;
     });
 
     window.addEventListener('resize', () => {
@@ -922,6 +931,9 @@ nodeStatus.addEventListener('change', () => {
         applyView();
         scheduleSave();
       }
+      if(dragCandidate && dragCandidate.pointerId === ev.pointerId && !draggingNode){
+        maybeStartDragging(ev);
+      }
       if(connecting) updateTempPath(ev.clientX, ev.clientY);
       if(draggingNode) moveNodeDuringDrag(ev);
     });
@@ -930,6 +942,7 @@ nodeStatus.addEventListener('change', () => {
       panning = null;
       if(connecting && connecting.mode === 'drag') finishConnection(ev);
       if(draggingNode) stopNodeDrag(ev);
+      dragCandidate = null;
     });
 
     // Zoom com Ctrl+scroll
@@ -956,13 +969,29 @@ nodeStatus.addEventListener('change', () => {
   function startNodeDrag(ev, nodeId){
     const n = getNode(nodeId);
     if(!n) return;
+    const p = clientToCanvas(ev.clientX, ev.clientY);
+    dragCandidate = {
+      id: nodeId,
+      dx: p.x - n.x,
+      dy: p.y - n.y,
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startY: ev.clientY
+    };
+  }
+
+  function maybeStartDragging(ev){
+    if(!dragCandidate) return;
+    const dist = Math.hypot(ev.clientX - dragCandidate.startX, ev.clientY - dragCandidate.startY);
+    if(dist < DRAG_THRESHOLD) return;
+    const n = getNode(dragCandidate.id);
+    if(!n){ dragCandidate = null; return; }
     markHistory();
     selectedEdgeId = null;
-    selectedNodeId = nodeId;
+    selectedNodeId = dragCandidate.id;
     refreshSelectionUI();
-    const p = clientToCanvas(ev.clientX, ev.clientY);
-    draggingNode = { id: nodeId, dx: p.x - n.x, dy: p.y - n.y, pointerId: ev.pointerId };
-    canvasWrap.setPointerCapture(ev.pointerId);
+    draggingNode = { ...dragCandidate };
+    try{ canvasWrap.setPointerCapture(dragCandidate.pointerId); }catch{}
   }
 
   function moveNodeDuringDrag(ev){
@@ -979,6 +1008,7 @@ nodeStatus.addEventListener('change', () => {
 
   function stopNodeDrag(ev){
     draggingNode = null;
+    dragCandidate = null;
     try{ canvasWrap.releasePointerCapture(ev.pointerId); }catch{}
   }
 
