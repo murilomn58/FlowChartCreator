@@ -331,6 +331,29 @@
     .metaChip[data-editable="true"]{
       cursor: pointer;
     }
+    .configChip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size:12px;
+    }
+    .configChip button{
+      border:none;
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      border-radius:8px;
+      padding:2px 6px;
+      cursor:pointer;
+    }
+    .configChip button:hover{
+      background: rgba(255,107,107,.25);
+      color:#ffd7df;
+    }
 .metaChip b{ color: var(--text); font-weight:650; }
 
     .metaChip.status{

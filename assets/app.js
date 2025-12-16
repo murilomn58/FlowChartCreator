@@ -288,7 +288,10 @@
       }
 
       selectNode(n.id);
-      if(!isEditing) startNodeDrag(ev, n.id);
+      if(!isEditing){
+        const onHeader = ev.target.closest && ev.target.closest('.nodeHeader');
+        if(onHeader) startNodeDrag(ev, n.id);
+      }
     });
 
     const titleEl = el.querySelector('.nodeTitle');
@@ -660,8 +663,8 @@ function getPortPos(n, portType, idx){
       statusList.innerHTML = '';
       for(const s of (state.meta?.statuses || [])){
         const span = document.createElement('span');
-        span.className = 'metaChip';
-        span.textContent = s;
+        span.className = 'configChip';
+        span.innerHTML = `${esc(s)} <button type="button" data-remove-status="${esc(s)}">×</button>`;
         statusList.appendChild(span);
       }
     }
@@ -669,8 +672,8 @@ function getPortPos(n, portType, idx){
       memberList.innerHTML = '';
       for(const m of (state.meta?.members || [])){
         const span = document.createElement('span');
-        span.className = 'metaChip';
-        span.textContent = m;
+        span.className = 'configChip';
+        span.innerHTML = `${esc(m)} <button type="button" data-remove-member="${esc(m)}">×</button>`;
         memberList.appendChild(span);
       }
     }
@@ -1097,6 +1100,23 @@ edgeOrthoInput?.addEventListener('change', () => {
         renderConfigLists();
         scheduleSave();
       }
+    });
+    statusList?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-remove-status]');
+      if(!btn) return;
+      const val = btn.dataset.removeStatus;
+      state.meta.statuses = (state.meta.statuses || []).filter(s => s !== val);
+      renderConfigLists();
+      updateStatusSelect();
+      scheduleSave();
+    });
+    memberList?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-remove-member]');
+      if(!btn) return;
+      const val = btn.dataset.removeMember;
+      state.meta.members = (state.meta.members || []).filter(m => m !== val);
+      renderConfigLists();
+      scheduleSave();
     });
     templateButtons.forEach(btn => {
       btn.addEventListener('click', () => loadTemplate(btn.dataset.template));
