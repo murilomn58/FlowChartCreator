@@ -1,74 +1,168 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FlowChart Pro</title>
+  <title>FlowChart Creator ΓÇö Dashboard BI</title>
   <link rel="stylesheet" href="assets/style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app">
     <header>
       <div class="brand">
-        <h1>FlowChart Pro</h1>
-        <span>Editor Visual</span>
+        <div class="logo"></div>
+        <div class="titleWrap">
+          <div class="h1">FlowChart Creator</div>
+          <div class="sub">Dashboard BI ΓÇö Fluxos & Processos</div>
+        </div>
       </div>
 
       <div class="toolbar">
-        <button class="btn primary" id="addNodeBtn">+ Adicionar Etapa</button>
+        <button class="btn primary" id="addNodeBtn">+ Adicionar</button>
+        <button class="btn" id="autoLayoutBtn">Auto Layout</button>
+        <button class="btn" id="fitBtn">Fit</button>
+        <button class="btn" id="exportBtn">Exportar</button>
+        <button class="btn" id="exportPngBtn">PNG</button>
+        <button class="btn" id="exportSvgBtn">SVG</button>
         <button class="btn danger" id="clearBtn">Limpar</button>
+        <div style="display:flex; gap:6px; align-items:center; margin-left:12px;">
+          <label style="color:#c7d0cc; font-size:12px;">Modo</label>
+          <select id="modeSelect" style="width:auto; min-width:120px;">
+            <option value="select">Sele├º├úo</option>
+            <option value="hand">M├úo</option>
+          </select>
+        </div>
       </div>
     </header>
 
-    <main style="display:contents;">
+    <main>
+      <aside>
+        <div class="panel">
+          <h2>Etapa Selecionada</h2>
+          <div class="small" id="noneSelected">Clique em uma etapa para editar.</div>
+          <div id="editor" style="display:none;">
+
+          <div id="edgeEditor" style="display:none; margin-top:12px;">
+            <h2>Seta Selecionada</h2>
+            <label for="edgeLabelInput">R?tulo</label>
+            <input id="edgeLabelInput" type="text" placeholder="Ex: Sim/N?o">
+            <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+              <input id="edgeOrthoInput" type="checkbox" style="width:auto;"> Seta ortogonal (90?)
+            </label>
+            <div class="row" style="margin-top:12px;">
+              <button class="btn" id="edgeExportBtn" style="flex:1;">Exportar sele??o</button>
+              <button class="btn danger" id="edgeClearBtn" style="flex:1;">Remover</button>
+            </div>
+          </div>
+
+            <label for="nodeName">Nome</label>
+            <input id="nodeName" type="text" placeholder="Nome da etapa">
+
+            <label for="nodeDesc">Descri├º├úo</label>
+            <textarea id="nodeDesc" placeholder="Descri├º├úo..."></textarea>
+
+            <div class="row" style="margin-top:12px;">
+              <div style="flex:1;">
+                <label for="nodeInPorts">Entradas</label>
+                <input id="nodeInPorts" type="number" min="1" max="6" value="1">
+              </div>
+              <div style="flex:1;">
+                <label for="nodeOutPorts">Sa├¡das</label>
+                <input id="nodeOutPorts" type="number" min="1" max="6" value="1">
+              </div>
+            </div>
+
+            <label for="nodeColor">Cor</label>
+            <input id="nodeColor" type="color" value="#B6F23A">
+
+            <label>Respons├ível</label>
+            <div class="ownerToggle" id="ownerToggle">
+              <button class="ownerOption" type="button" data-owner="Murilo">Murilo</button>
+              <button class="ownerOption" type="button" data-owner="Jean">Jean</button>
+              <button class="ownerOption" type="button" data-owner="Outro">Outro</button>
+            </div>
+            <div class="ownerOtherWrap" id="ownerOtherWrap" style="display:none;">
+              <input id="nodeOwner" type="text" placeholder="Digite o nome">
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+              <div style="flex:1;">
+                <label for="nodeDue">Prazo</label>
+                <input id="nodeDue" type="date">
+              </div>
+              <div style="flex:1;">
+                <label for="nodeEta">Estimativa (dias)</label>
+                <input id="nodeEta" type="number" min="0" step="1" value="0">
+              </div>
+            </div>
+
+            <label for="nodeStatus">Status</label>
+            <select id="nodeStatus">
+  <option value="backlog">Backlog</option>
+  <option value="doing">Em andamento</option>
+  <option value="testing">Teste</option>
+  <option value="bugfix">Corre├º├úo de bugs</option>
+  <option value="done">Finalizado</option>
+</select>
+
+
+            <div class="row" style="margin-top:16px;">
+              <button class="btn" id="dupBtn" style="flex:1;">Duplicar</button>
+              <button class="btn danger" id="delBtn" style="flex:1;">Excluir</button>
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="panel">
+          <h2>Configura├º├╡es r├ípidas</h2>
+          <div class="small">Adicione ou remova status e membros dos chips.</div>
+          <label for="statusInput">Novo status</label>
+          <div class="row">
+            <input id="statusInput" type="text" placeholder="Ex: Revis├úo">
+            <button class="btn" id="addStatusBtn" style="white-space:nowrap;">Adicionar</button>
+          </div>
+          <div class="small" id="statusList" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+          <label for="memberInput" style="margin-top:12px;">Novo membro</label>
+          <div class="row">
+            <input id="memberInput" type="text" placeholder="Ex: Ana">
+            <button class="btn" id="addMemberBtn" style="white-space:nowrap;">Adicionar</button>
+          </div>
+          <div class="small" id="memberList" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+          <h2 style="margin-top:16px;">Templates</h2>
+          <div class="row" style="flex-wrap:wrap; gap:8px;">
+            <button class="btn" data-template="processo">Processo</button>
+            <button class="btn" data-template="kanban">Kanban</button>
+            <button class="btn" data-template="etl">ETL</button>
+            <button class="btn" data-template="pipeline">Pipeline BI</button>
+            <button class="btn" data-template="sac">SAC</button>
+          </div>
+        </div>
+<div class="panel">
+          <h2>Dados</h2>
+          <div class="small">Salvo automaticamente no navegador.</div>
+          <div class="row" style="margin-top:12px;">
+            <button class="btn" id="importBtn" style="flex:1;">Importar</button>
+            <button class="btn" id="exportBtn2" style="flex:1;">Exportar</button>
+          </div>
+          <input type="file" id="fileInput" accept=".json" style="display:none;">
+        </div>
+      </aside>
+
       <div class="canvasWrap" id="canvasWrap" tabindex="0">
         <svg id="svg"></svg>
         <div id="board"></div>
-        <div class="toast" id="toast">Altera??o salva</div>
+        <button type="button" class="edgeDeleteBtn" id="edgeDeleteBtn">Remover seta</button>
+        <div class="toast" id="toast"></div>
       </div>
-
-      <aside>
-        <div id="noneSelected">
-          <h2>Bem-vindo</h2>
-          <p class="small">Selecione um item para editar ou clique em "+ Adicionar" para come?ar.</p>
-          <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-          <p class="small" style="opacity:0.7">
-            <strong>Dicas:</strong><br>
-            ? Use a roda do mouse para zoom.<br>
-            ? Segure Espa?o + clique para mover a tela.<br>
-            ? Arraste a barra superior do card para mover.<br>
-            ? Arraste da bolinha de baixo para a de cima para conectar.
-          </p>
-        </div>
-
-        <div id="editor" style="display:none;">
-          <h2>Editar Etapa</h2>
-          <div class="form-group">
-            <label>T?tulo</label>
-            <input type="text" id="nodeName">
-          </div>
-          <div class="form-group">
-            <label>Descri??o</label>
-            <textarea id="nodeDesc" rows="3"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="nodeStatus">
-              <option value="backlog">Backlog</option>
-              <option value="doing">Em andamento</option>
-              <option value="testing">Em teste</option>
-              <option value="done">Conclu?do</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Cor da borda</label>
-            <input type="color" id="nodeColor">
-          </div>
-        </div>
-      </aside>
     </main>
+    <div class="drawerBackdrop" id="drawerBackdrop"></div>
+    <button class="mobilePanelBtn" id="openPanelBtn" type="button">Editar etapa</button>
+    <div class="chipMenu" id="chipMenu"></div>
   </div>
-  <script src="assets/app.js"></script>
+
+<script src="assets/app.js"></script>
 </body>
 </html>
