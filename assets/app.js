@@ -1,601 +1,3 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FlowChart Creator — Dashboard BI</title>
-  <style>
-    :root{
-      /* Dark dashboard com verde petróleo + neon limão */
-      --bg0:#0B0F0E;
-      --bg1:#0E2A26;
-      --bg2:#1A1F1E;
-      --text:#F2F5F3;
-      --muted:#C7D0CC;
-      --mutedDark:#7A8A85;
-
-      --neonLime:#B6F23A;
-      --greenBright:#9FE870;
-      --greenMedium:#6FBF4A;
-      --greenOlive:#4F6B3A;
-      --greenMoss:#3E5A45;
-      --danger:#FF6B6B;
-
-      --shadow: 0 16px 48px rgba(0,0,0,.65);
-      --radius:18px;
-    }
-
-    *{ box-sizing:border-box; margin:0; padding:0; }
-    html,body{ height:100%; }
-
-    body{
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background:
-        radial-gradient(1100px 700px at 16% 18%, rgba(182,242,58,.08), transparent 62%),
-        radial-gradient(900px 650px at 72% 18%, rgba(159,232,112,.06), transparent 60%),
-        radial-gradient(1000px 800px at 55% 80%, rgba(62,90,69,.12), transparent 65%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-      color:var(--text);
-      overflow:hidden;
-    }
-
-    .app{ height:100%; display:grid; grid-template-rows:auto 1fr; }
-
-    header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:16px 20px;
-      gap:12px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      background: linear-gradient(180deg, rgba(14,42,38,.85), rgba(11,15,14,.40));
-      backdrop-filter: blur(12px);
-    }
-
-    .brand{ display:flex; align-items:center; gap:12px; }
-
-    .logo{
-      width:42px; height:42px;
-      border-radius:14px;
-      background: linear-gradient(135deg, rgba(182,242,58,.95), rgba(159,232,112,.85));
-      box-shadow:
-        0 0 0 1px rgba(182,242,58,.28),
-        0 18px 40px rgba(182,242,58,.20),
-        0 10px 26px rgba(159,232,112,.16);
-      position:relative;
-      overflow:hidden;
-    }
-    .logo:before{
-      content:"";
-      position:absolute;
-      inset:-55% -75%;
-      background: linear-gradient(90deg, rgba(255,255,255,.55), transparent);
-      transform: rotate(22deg);
-      opacity:.30;
-    }
-
-    .titleWrap{ line-height:1.2; }
-    .h1{ font-weight:780; letter-spacing:.2px; font-size:15px; }
-    .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
-
-    .toolbar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-
-    .btn{
-      border:1px solid rgba(255,255,255,.10);
-      background: linear-gradient(180deg, rgba(14,42,38,.92), rgba(11,15,14,.92));
-      color:var(--text);
-      padding:10px 14px;
-      border-radius:14px;
-      font-size:13px;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      transition: all .15s ease;
-      box-shadow: 0 8px 18px rgba(0,0,0,.25);
-      user-select:none;
-    }
-    .btn:hover{
-      border-color: rgba(182,242,58,.45);
-      box-shadow: 0 10px 22px rgba(182,242,58,.14), 0 8px 18px rgba(0,0,0,.25);
-    }
-    .btn:focus{
-      outline: 2px solid rgba(182,242,58,.60);
-      outline-offset: 2px;
-    }
-    .btn:active{ transform: translateY(1px); }
-
-    .btn.primary{
-      border-color: rgba(182,242,58,.48);
-      background: linear-gradient(180deg, rgba(182,242,58,.18), rgba(14,42,38,.92));
-    }
-    .btn.danger{
-      border-color: rgba(255,107,107,.42);
-      background: linear-gradient(180deg, rgba(255,107,107,.16), rgba(14,42,38,.92));
-    }
-
-    main{ height:100%; display:grid; grid-template-columns: 330px 1fr; overflow:hidden; }
-
-    aside{
-      border-right:1px solid rgba(255,255,255,.06);
-      background: linear-gradient(180deg, rgba(14,42,38,.62), rgba(11,15,14,.25));
-      backdrop-filter: blur(10px);
-      padding:16px;
-      overflow:auto;
-    }
-
-    .panel{
-      background: linear-gradient(180deg, rgba(14,42,38,.86), rgba(11,15,14,.72));
-      border:1px solid rgba(255,255,255,.08);
-      border-radius: var(--radius);
-      padding:16px;
-      box-shadow: var(--shadow);
-      margin-bottom:14px;
-    }
-
-    .panel h2{ margin:0 0 12px 0; font-size:13px; letter-spacing:.3px; color:var(--text); }
-    .small{ font-size:12px; color:var(--muted); line-height:1.4; }
-
-    label{ display:block; font-size:12px; color:var(--muted); margin:12px 0 6px; }
-
-    input[type="text"], input[type="number"], input[type="color"], textarea, select{
-      width:100%;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(11,15,14,.55);
-      color:var(--text);
-      padding:10px 12px;
-      outline:none;
-      font-family: inherit;
-      font-size:13px;
-    }
-    input:focus, textarea:focus{
-      border-color: rgba(182,242,58,.55);
-      box-shadow: 0 0 0 3px rgba(182,242,58,.22);
-      outline: 2px solid rgba(182,242,58,.38);
-      outline-offset: 1px;
-    }
-    textarea{ resize:vertical; min-height:80px; }
-    select{ appearance:none; background-image: linear-gradient(45deg, transparent 50%, rgba(242,245,243,.7) 50%), linear-gradient(135deg, rgba(242,245,243,.7) 50%, transparent 50%); background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px); background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right:34px; }
-    input[type="color"]{ padding:6px; height:40px; cursor:pointer; }
-
-    .row{ display:flex; gap:10px; }
-
-    .canvasWrap{
-      position:relative;
-      height:100%;
-      overflow:hidden;
-      background:
-        radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0) 0 0 / 20px 20px,
-        radial-gradient(circle at 1px 1px, rgba(182,242,58,.06) 1px, transparent 0) 10px 10px / 20px 20px,
-        linear-gradient(90deg, rgba(30,50,45,.18) 1px, transparent 1px) 0 0 / 120px 120px,
-        linear-gradient(180deg, rgba(30,50,45,.14) 1px, transparent 1px) 0 0 / 120px 120px;
-    }
-
-    #svg{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      pointer-events:none;
-      overflow:visible;
-    }
-
-    #board{
-      position:absolute;
-      inset:0;
-      overflow:visible;
-    }
-
-    .node{
-      position:absolute;
-      overflow: visible;
-      min-width: 220px;
-      max-width: 280px;
-      padding:12px;
-      border-radius: 18px;
-      background: linear-gradient(180deg, rgba(14,42,38,.92), rgba(11,15,14,.86));
-      border: 1px solid rgba(255,255,255,.10);
-      box-shadow: var(--shadow);
-      cursor: grab;
-      user-select:none;
-    }
-    .node:active{ cursor:grabbing; }
-
-    .node.selected{
-      border-color: rgba(182,242,58,.68);
-      box-shadow:
-        0 0 0 1px rgba(182,242,58,.28),
-        0 18px 54px rgba(182,242,58,.22),
-        var(--shadow);
-    }
-
-    .nodeHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:8px;
-    }
-
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      height:22px;
-      padding:0 10px;
-      border-radius: 999px;
-      font-size:11px;
-      white-space:nowrap;
-    }
-
-    .nodeTitle{
-      font-weight:760;
-      font-size:14px;
-      letter-spacing:.2px;
-      outline:none;
-      cursor:text;
-      padding:4px 6px;
-      border-radius:10px;
-      margin-bottom:4px;
-    }
-    .nodeTitle[contenteditable="true"]:focus{
-      box-shadow: inset 0 0 0 2px rgba(182,242,58,.45);
-      background: rgba(182,242,58,.10);
-    }
-
-    .nodeDesc{
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.4;
-      outline:none;
-      cursor:text;
-      padding:4px 6px;
-      border-radius:10px;
-      min-height: 18px;
-    }
-    .nodeDesc[contenteditable="true"]:focus{
-      box-shadow: inset 0 0 0 2px rgba(159,232,112,.32);
-      background: rgba(159,232,112,.10);
-    }
-
-    .ports{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin-top:12px;
-    }
-    .portGroup{ display:flex; gap:8px; align-items:center; }
-
-    .port{
-      width:14px;
-      height:14px;
-      border-radius:999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 8px 16px rgba(0,0,0,.28);
-      cursor: crosshair;
-      position:relative;
-    }
-    .port::after{
-      content:"";
-      position:absolute;
-      inset:-8px;
-      border-radius:999px;
-    }
-
-    
-
-.quickAdd{
-  position:absolute;
-  right:-14px;
-  top:50%;
-  transform: translate(50%,-50%);
-  width:30px;
-  height:30px;
-  border-radius: 999px;
-  border: 1px solid rgba(182,242,58,.55);
-  background: linear-gradient(180deg, rgba(182,242,58,.18), rgba(11,15,14,.85));
-  color: var(--text);
-  display:grid;
-  place-items:center;
-  cursor:pointer;
-  box-shadow: 0 14px 28px rgba(0,0,0,.35), 0 0 0 4px rgba(182,242,58,.10);
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-  font-size:16px;
-  line-height:1;
-}
-.quickAdd:hover{
-  transform: translate(50%,-50%) scale(1.06);
-  border-color: rgba(159,232,112,.70);
-  box-shadow: 0 16px 32px rgba(0,0,0,.40), 0 0 0 5px rgba(159,232,112,.14);
-}
-.quickAdd:focus{
-  outline: 2px solid rgba(182,242,58,.60);
-  outline-offset: 3px;
-}
-
-.nodeMeta{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-top:10px;
-}
-.metaChip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.05);
-  font-size:11px;
-  color: var(--muted);
-  white-space:nowrap;
-  max-width: 100%;
-}
-.metaChip b{ color: var(--text); font-weight:650; }
-
-.metaChip.status{
-  color: var(--text);
-  border-color: rgba(182,242,58,.20);
-  background: rgba(182,242,58,.10);
-}
-.metaChip.status.backlog{ background: rgba(122,138,133,.16); border-color: rgba(122,138,133,.35); }
-.metaChip.status.doing{ background: rgba(242,245,243,.08); border-color: rgba(242,245,243,.22); }
-.metaChip.status.testing{ background: rgba(64,156,255,.16); border-color: rgba(64,156,255,.40); }
-.metaChip.status.bugfix{ background: rgba(255,159,67,.16); border-color: rgba(255,159,67,.42); }
-.metaChip.status.done{ background: rgba(159,232,112,.16); border-color: rgba(159,232,112,.42); }
-
-.metaChip.overdue{
-  border-color: rgba(255,107,107,.42);
-  color: #ffd7df;
-}
-.port:hover{
-      border-color: rgba(182,242,58,.68);
-      background: rgba(182,242,58,.22);
-      box-shadow: 0 0 0 2px rgba(182,242,58,.16), 0 12px 22px rgba(0,0,0,.30);
-    }
-
-    .port.in{
-      background: rgba(182,242,58,.14);
-      border-color: rgba(182,242,58,.32);
-    }
-    .port.out{
-      background: rgba(159,232,112,.14);
-      border-color: rgba(159,232,112,.32);
-    }
-
-    .nodeActions{ display:flex; gap:8px; }
-
-    .iconBtn{
-      width:28px;
-      height:28px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(11,15,14,.45);
-      display:grid;
-      place-items:center;
-      color: var(--muted);
-      cursor:pointer;
-      font-size:14px;
-      transition: all .12s ease;
-    }
-    .iconBtn:hover{
-      border-color: rgba(182,242,58,.45);
-      color: var(--text);
-      box-shadow: 0 0 0 3px rgba(182,242,58,.12);
-    }
-    .iconBtn:focus{
-      outline: 2px solid rgba(182,242,58,.55);
-      outline-offset: 2px;
-    }
-    .iconBtn.delete:hover{
-      border-color: rgba(255,107,107,.45);
-      color: #ffd7df;
-      box-shadow: 0 0 0 3px rgba(255,107,107,.12);
-    }
-
-    .toast{
-      position:absolute;
-      left:50%;
-      bottom:20px;
-      transform: translateX(-50%);
-      background: rgba(14,42,38,.85);
-      border:1px solid rgba(182,242,58,.25);
-      padding:10px 16px;
-      border-radius: 14px;
-      color: var(--text);
-      font-size:13px;
-      box-shadow: var(--shadow);
-      opacity:0;
-      pointer-events:none;
-      transition: opacity .2s ease, transform .2s ease;
-    }
-    .toast.show{ opacity:1; transform: translateX(-50%) translateY(-4px); }
-
-    @media (max-width: 980px){
-      main{ grid-template-columns: 1fr; }
-      aside{ display:none; }
-    }
-
-    .ownerToggle{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:6px;
-    }
-    .ownerOption{
-      padding:8px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(11,15,14,.55);
-      color:var(--text);
-      cursor:pointer;
-      font-size:12px;
-      transition: all .12s ease;
-    }
-    .ownerOption:hover{
-      border-color: rgba(182,242,58,.45);
-      box-shadow: 0 0 0 3px rgba(182,242,58,.12);
-    }
-    .ownerOption.active{
-      border-color: rgba(182,242,58,.55);
-      background: rgba(182,242,58,.14);
-      color: var(--text);
-    }
-    .ownerOtherWrap{ margin-top:8px; }
-    .ownerOtherWrap input{ width:100%; }
-
-    .edgeDeleteBtn{
-      position:absolute;
-      z-index:4;
-      display:none;
-      transform: translate(-50%, -50%);
-      padding:8px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(11,15,14,.88);
-      color:var(--text);
-      cursor:pointer;
-      font-size:12px;
-      box-shadow: var(--shadow);
-      transition: all .12s ease;
-    }
-    .edgeDeleteBtn:hover{
-      border-color: rgba(255,107,107,.55);
-      color:#ffd7df;
-      box-shadow: 0 0 0 4px rgba(255,107,107,.16), var(--shadow);
-    }
-  
-    /* Status (card background + header pill) */
-    .node[data-status="backlog"]{ background: rgba(122,138,133,.14); border-color: rgba(122,138,133,.35); }
-    .node[data-status="doing"]{ background: rgba(242,245,243,.06); border-color: rgba(242,245,243,.20); }
-    .node[data-status="testing"]{ background: rgba(64,156,255,.12); border-color: rgba(64,156,255,.35); }
-    .node[data-status="bugfix"]{ background: rgba(255,159,67,.12); border-color: rgba(255,159,67,.38); }
-    .node[data-status="done"]{ background: rgba(159,232,112,.12); border-color: rgba(159,232,112,.38); }
-
-    .statusPill{
-      display:inline-flex;
-      align-items:center;
-      height:22px;
-      padding:0 10px;
-      border-radius: 999px;
-      font-size:11px;
-      white-space:nowrap;
-      border:1px solid rgba(242,245,243,.18);
-      color: rgba(242,245,243,.92);
-      background: rgba(242,245,243,.08);
-    }
-    .statusPill.s-backlog{ background: rgba(122,138,133,.18); border-color: rgba(122,138,133,.38); }
-    .statusPill.s-doing{ background: rgba(242,245,243,.10); border-color: rgba(242,245,243,.28); }
-    .statusPill.s-testing{ background: rgba(64,156,255,.22); border-color: rgba(64,156,255,.45); }
-    .statusPill.s-bugfix{ background: rgba(255,159,67,.22); border-color: rgba(255,159,67,.50); }
-    .statusPill.s-done{ background: rgba(159,232,112,.20); border-color: rgba(159,232,112,.45); color: rgba(10,18,14,.92); }
-
-    /* Edge selection */
-    svg path.edgePath.selected{ stroke-width: 3.5; filter: url(#glow); }
-</style>
-</head>
-<body>
-  <div class="app">
-    <header>
-      <div class="brand">
-        <div class="logo"></div>
-        <div class="titleWrap">
-          <div class="h1">FlowChart Creator</div>
-          <div class="sub">Dashboard BI — Fluxos & Processos</div>
-        </div>
-      </div>
-
-      <div class="toolbar">
-        <button class="btn primary" id="addNodeBtn">+ Adicionar</button>
-        <button class="btn" id="autoLayoutBtn">Auto Layout</button>
-        <button class="btn" id="fitBtn">Fit</button>
-        <button class="btn" id="exportBtn">Exportar</button>
-        <button class="btn danger" id="clearBtn">Limpar</button>
-      </div>
-    </header>
-
-    <main>
-      <aside>
-        <div class="panel">
-          <h2>Etapa Selecionada</h2>
-          <div class="small" id="noneSelected">Clique em uma etapa para editar.</div>
-          <div id="editor" style="display:none;">
-            <label for="nodeName">Nome</label>
-            <input id="nodeName" type="text" placeholder="Nome da etapa">
-
-            <label for="nodeDesc">Descrição</label>
-            <textarea id="nodeDesc" placeholder="Descrição..."></textarea>
-
-            <label for="nodeLabel">Rótulo</label>
-            <input id="nodeLabel" type="text" placeholder="Categoria">
-
-            <div class="row" style="margin-top:12px;">
-              <div style="flex:1;">
-                <label for="nodeInPorts">Entradas</label>
-                <input id="nodeInPorts" type="number" min="1" max="6" value="1">
-              </div>
-              <div style="flex:1;">
-                <label for="nodeOutPorts">Saídas</label>
-                <input id="nodeOutPorts" type="number" min="1" max="6" value="1">
-              </div>
-            </div>
-
-            <label for="nodeColor">Cor</label>
-            <input id="nodeColor" type="color" value="#B6F23A">
-
-            <label for="nodeOwner">Responsável</label>
-            <input id="nodeOwner" type="text" placeholder="Ex: Murilo / Time BI">
-
-            <div class="row" style="margin-top:12px;">
-              <div style="flex:1;">
-                <label for="nodeDue">Prazo</label>
-                <input id="nodeDue" type="date">
-              </div>
-              <div style="flex:1;">
-                <label for="nodeEta">Estimativa (dias)</label>
-                <input id="nodeEta" type="number" min="0" step="1" value="0">
-              </div>
-            </div>
-
-            <label for="nodeStatus">Status</label>
-            <select id="nodeStatus">
-  <option value="backlog">Backlog</option>
-  <option value="doing">Em andamento</option>
-  <option value="testing">Teste</option>
-  <option value="bugfix">Correção de bugs</option>
-  <option value="done">Finalizado</option>
-</select>
-
-
-            <div class="row" style="margin-top:16px;">
-              <button class="btn" id="dupBtn" style="flex:1;">Duplicar</button>
-              <button class="btn danger" id="delBtn" style="flex:1;">Excluir</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>Dados</h2>
-          <div class="small">Salvo automaticamente no navegador.</div>
-          <div class="row" style="margin-top:12px;">
-            <button class="btn" id="importBtn" style="flex:1;">Importar</button>
-            <button class="btn" id="exportBtn2" style="flex:1;">Exportar</button>
-          </div>
-          <input type="file" id="fileInput" accept=".json" style="display:none;">
-        </div>
-      </aside>
-
-      <div class="canvasWrap" id="canvasWrap" tabindex="0">
-        <svg id="svg"></svg>
-        <div id="board"></div>
-        <div class="toast" id="toast"></div>
-      </div>
-    </main>
-  </div>
-
-<script>
 (() => {
   'use strict';
 
@@ -634,6 +36,8 @@
   const nodeDue = document.getElementById('nodeDue');
   const nodeEta = document.getElementById('nodeEta');
   const nodeStatus = document.getElementById('nodeStatus');
+  const ownerToggle = document.getElementById('ownerToggle');
+  const ownerOtherWrap = document.getElementById('ownerOtherWrap');
   const dupBtn = document.getElementById('dupBtn');
   const delBtn = document.getElementById('delBtn');
 
@@ -645,6 +49,9 @@
   const clearBtn = document.getElementById('clearBtn');
   const importBtn = document.getElementById('importBtn');
   const fileInput = document.getElementById('fileInput');
+  const edgeDeleteBtn = document.getElementById('edgeDeleteBtn');
+  const openPanelBtn = document.getElementById('openPanelBtn');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
 
   init();
 
@@ -687,8 +94,8 @@
       x, y,
       w: 260,
       h: 130,
-      inPorts: 2,
-      outPorts: 2,
+      inPorts: 1,
+      outPorts: 1,
       color: '#B6F23A',
       owner: '',
       due: '',
@@ -1082,13 +489,15 @@ function getPortPos(n, portType, idx){
     svg.style.transformOrigin = '0 0';
     board.style.transform = t;
     svg.style.transform = t;
+    updateEdgeDeleteBtn();
   }
 
   function rerenderEdgesOnly(){
     for(const e of state.edges) updateEdgePath(e.id);
+    updateEdgeDeleteBtn();
   }
 
-  function refreshSelectionUI(){
+function refreshSelectionUI(){
   // Highlight selected node
   for(const el of board.querySelectorAll('.node')){
     el.classList.toggle('selected', el.dataset.nodeId === selectedNodeId);
@@ -1106,19 +515,54 @@ function getPortPos(n, portType, idx){
       nodeName.value = n.name || '';
       nodeDesc.value = n.desc || '';
       nodeLabel.value = n.label || '';
-      nodeInPorts.value = String(clampInt(n.inPorts ?? 2, 1, 6));
-      nodeOutPorts.value = String(clampInt(n.outPorts ?? 2, 1, 6));
+      nodeInPorts.value = String(clampInt(n.inPorts ?? 1, 1, 6));
+      nodeOutPorts.value = String(clampInt(n.outPorts ?? 1, 1, 6));
       nodeColor.value = n.color || '#B6F23A';
-      nodeOwner.value = n.owner || '';
+      updateOwnerUI(n.owner || '');
       nodeDue.value = n.due || '';
       nodeEta.value = String(n.etaDays ?? 0);
       nodeStatus.value = n.status || 'backlog';
+      if(isMobile()) openPanel();
     }
   }else{
     noneSelected.style.display = 'block';
     editor.style.display = 'none';
+    if(isMobile()) closePanel();
   }
+  updateEdgeDeleteBtn();
 }
+
+  function applyOwnerToState(ownerVal){
+    const n = getNode(selectedNodeId);
+    if(!n) return;
+    markHistory(200);
+    n.owner = ownerVal;
+    syncNodeDOM(n.id);
+    scheduleSave();
+  }
+
+  function updateOwnerUI(ownerVal){
+    const normalized = sanitize(ownerVal || '');
+    const buttons = ownerToggle?.querySelectorAll?.('.ownerOption') || [];
+    const lower = normalized.toLowerCase();
+    const isPreset = lower === 'murilo'.toLowerCase() || lower === 'jean'.toLowerCase();
+    const isOutro = !isPreset;
+
+    buttons.forEach(btn => {
+      const val = btn.dataset.owner || '';
+      btn.classList.toggle('active',
+        (isPreset && val.toLowerCase() === lower) ||
+        (!isPreset && val === 'Outro'));
+    });
+
+    if(ownerOtherWrap) ownerOtherWrap.style.display = isOutro ? 'block' : 'none';
+    if(nodeOwner) nodeOwner.value = normalized;
+  }
+
+  function isMobile(){ return window.innerWidth <= 980; }
+
+  function openPanel(){ document.body.classList.add('show-panel'); }
+  function closePanel(){ document.body.classList.remove('show-panel'); }
 
   function attachHandlers(){
     // Captura cliques para o modo "clique-para-conectar" (roda antes dos handlers dos nodes)
@@ -1137,6 +581,7 @@ function getPortPos(n, portType, idx){
     window.addEventListener('resize', () => {
       updateSvgViewBox();
       rerenderEdgesOnly();
+      if(!isMobile()) closePanel();
     });
 
     window.addEventListener('keydown', (ev) => {
@@ -1201,7 +646,7 @@ function getPortPos(n, portType, idx){
       const n = getNode(selectedNodeId);
       if(!n) return;
       markHistory();
-      n.inPorts = clampInt(parseInt(nodeInPorts.value || '2', 10), 1, 6);
+      n.inPorts = clampInt(parseInt(nodeInPorts.value || '1', 10), 1, 6);
       renderAll();
       selectNode(n.id);
       scheduleSave();
@@ -1211,7 +656,7 @@ function getPortPos(n, portType, idx){
       const n = getNode(selectedNodeId);
       if(!n) return;
       markHistory();
-      n.outPorts = clampInt(parseInt(nodeOutPorts.value || '2', 10), 1, 6);
+      n.outPorts = clampInt(parseInt(nodeOutPorts.value || '1', 10), 1, 6);
       renderAll();
       selectNode(n.id);
       scheduleSave();
@@ -1229,16 +674,40 @@ function getPortPos(n, portType, idx){
 nodeOwner.addEventListener('input', throttledInput(() => {
   const n = getNode(selectedNodeId);
   if(!n) return;
-  n.owner = nodeOwner.value;
-  syncNodeDOM(n.id);
-  scheduleSave();
+  const val = sanitize(nodeOwner.value);
+  updateOwnerUI(val);
+  applyOwnerToState(val);
 }));
 
-nodeDue.addEventListener('change', () => {
-  const n = getNode(selectedNodeId);
-  if(!n) return;
-  markHistory(150);
-  n.due = nodeDue.value || '';
+    ownerToggle?.addEventListener('click', (ev) => {
+      const btn = ev.target.closest?.('.ownerOption');
+      if(!btn) return;
+      const choice = btn.dataset.owner || '';
+      if(choice === 'Outro'){
+        const val = sanitize(nodeOwner.value || '');
+        updateOwnerUI(val);
+        applyOwnerToState(val);
+      }else{
+        updateOwnerUI(choice);
+        applyOwnerToState(choice);
+      }
+    });
+
+    edgeDeleteBtn?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if(selectedEdgeId) removeEdge(selectedEdgeId);
+    });
+
+    openPanelBtn?.addEventListener('click', () => {
+      openPanel();
+    });
+    drawerBackdrop?.addEventListener('click', () => closePanel());
+
+    nodeDue.addEventListener('change', () => {
+      const n = getNode(selectedNodeId);
+      if(!n) return;
+      markHistory(150);
+      n.due = nodeDue.value || '';
   syncNodeDOM(n.id);
   scheduleSave();
 });
@@ -1508,10 +977,32 @@ function finishConnection(ev){
   function updateEdgeSelectionDOM(){
     const paths = svg.querySelectorAll('path.edgePath');
     paths.forEach(p => p.classList.toggle('selected', p.dataset.edgeId === selectedEdgeId));
+    updateEdgeDeleteBtn();
   }
 
-function selectEdge(edgeId){ selectedEdgeId = edgeId; selectedNodeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); }
+  function selectEdge(edgeId){ selectedEdgeId = edgeId; selectedNodeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); }
   function clearSelection(){ selectedNodeId = null; selectedEdgeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); }
+
+  function updateEdgeDeleteBtn(){
+    if(!edgeDeleteBtn) return;
+    if(!selectedEdgeId){
+      edgeDeleteBtn.style.display = 'none';
+      return;
+    }
+    const e = state.edges.find(x => x.id === selectedEdgeId);
+    if(!e){ edgeDeleteBtn.style.display = 'none'; return; }
+    const a = getNode(e.from);
+    const b = getNode(e.to);
+    if(!a || !b){ edgeDeleteBtn.style.display = 'none'; return; }
+
+    const A = getPortPos(a, 'out', e.fromPort ?? 0);
+    const B = getPortPos(b, 'in', e.toPort ?? 0);
+    const mid = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+    const pos = canvasToViewport(mid.x, mid.y);
+    edgeDeleteBtn.style.left = `${pos.x}px`;
+    edgeDeleteBtn.style.top = `${pos.y}px`;
+    edgeDeleteBtn.style.display = 'block';
+  }
 
   function syncNodeDOM(nodeId){
     const n = getNode(nodeId);
@@ -1719,6 +1210,13 @@ function createNextStep(fromNodeId){
     return {x, y};
   }
 
+  function canvasToViewport(x, y){
+    return {
+      x: view.x + x * view.scale,
+      y: view.y + y * view.scale
+    };
+  }
+
   function updateNodeMetricsFromDOM(){
   // Atualiza w/h reais (baseado no DOM), para fitView/layout e viewBox ficarem corretos
   for(const n of state.nodes){
@@ -1785,6 +1283,3 @@ function esc(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
   }
 })();
-</script>
-</body>
-</html>
