@@ -290,7 +290,9 @@
       selectNode(n.id);
       if(!isEditing){
         const onHeader = ev.target.closest && ev.target.closest('.nodeHeader');
-        if(onHeader) startNodeDrag(ev, n.id);
+        const nonInteractiveArea = !isPort && !isMetaChip && !quick && !icon;
+        // Arrastar se clicar no header ou em área “neutra” do card
+        if(onHeader || nonInteractiveArea) startNodeDrag(ev, n.id);
       }
     });
 
@@ -1717,56 +1719,103 @@ function createNextStep(fromNodeId){
     showToast('Seleção exportada');
   }
 
-  function exportSVG(){
-    updateNodeMetricsFromDOM();
-    renderEdges();
-    const clone = svg.cloneNode(true);
-    clone.removeAttribute('style');
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    const serializer = new XMLSerializer();
-    const source = serializer.serializeToString(clone);
-    const blob = new Blob([source], {type:'image/svg+xml'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'flowchart.svg';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(a.href);
-    showToast('SVG exportado');
+  let cachedCssText = null;
+  async function getCssText(){
+    if(cachedCssText) return cachedCssText;
+    try{
+      const res = await fetch('assets/style.css');
+      cachedCssText = await res.text();
+      return cachedCssText;
+    }catch(_){
+      const styles = Array.from(document.styleSheets)
+        .map(ss => {
+          try{
+            return Array.from(ss.cssRules || []).map(r => r.cssText).join('\n');
+          }catch{ return ''; }
+        })
+        .join('\n');
+      cachedCssText = styles;
+      return cachedCssText;
+    }
   }
 
-  function exportPNG(){
-    // Render o SVG em canvas para PNG (inclui apenas edges; nodes via HTML não são capturados).
-    // Aviso: esta versão exporta as linhas; para nodes completos seria preciso usar html2canvas/dom-to-image.
+  async function buildSvgSnapshot(){
     updateNodeMetricsFromDOM();
     renderEdges();
-    const serializer = new XMLSerializer();
-    const source = serializer.serializeToString(svg);
-    const img = new Image();
-    const svgBlob = new Blob([source], {type:'image/svg+xml;charset=utf-8'});
-    const url = URL.createObjectURL(svgBlob);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = svg.clientWidth;
-      canvas.height = svg.clientHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#0B0F0E';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob((blob) => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'flowchart.png';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
-      });
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-    showToast('PNG exportado (somente setas)');
+    const cssText = await getCssText();
+    const w = canvasWrap.clientWidth;
+    const h = canvasWrap.clientHeight;
+    const wrapper = canvasWrap.cloneNode(true);
+    wrapper.setAttribute('id','exportCanvasWrap');
+    wrapper.style.position = 'relative';
+    wrapper.style.width = `${w}px`;
+    wrapper.style.height = `${h}px`;
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+        <style><![CDATA[${cssText}]]></style>
+        <foreignObject width="100%" height="100%">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden;">
+            ${wrapper.outerHTML}
+          </div>
+        </foreignObject>
+      </svg>
+    `;
+    return svgContent;
+  }
+
+  async function exportSVG(){
+    try{
+      const svgContent = await buildSvgSnapshot();
+      const blob = new Blob([svgContent], {type:'image/svg+xml'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'flowchart.svg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      showToast('SVG exportado');
+    }catch(e){
+      console.error(e);
+      showToast('Falha ao exportar SVG');
+    }
+  }
+
+  async function exportPNG(){
+    try{
+      const svgContent = await buildSvgSnapshot();
+      const img = new Image();
+      const svgBlob = new Blob([svgContent], {type:'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+      const w = canvasWrap.clientWidth;
+      const h = canvasWrap.clientHeight;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'flowchart.png';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(a.href);
+        });
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        showToast('Falha ao exportar PNG');
+      };
+      img.src = url;
+      showToast('PNG exportado');
+    }catch(e){
+      console.error(e);
+      showToast('Falha ao exportar PNG');
+    }
   }
 
   function fitView(){
