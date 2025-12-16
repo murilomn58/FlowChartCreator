@@ -28,7 +28,6 @@
   const noneSelected = document.getElementById('noneSelected');
   const nodeName = document.getElementById('nodeName');
   const nodeDesc = document.getElementById('nodeDesc');
-  const nodeLabel = document.getElementById('nodeLabel');
   const nodeInPorts = document.getElementById('nodeInPorts');
   const nodeOutPorts = document.getElementById('nodeOutPorts');
   const nodeColor = document.getElementById('nodeColor');
@@ -52,6 +51,7 @@
   const edgeDeleteBtn = document.getElementById('edgeDeleteBtn');
   const openPanelBtn = document.getElementById('openPanelBtn');
   const drawerBackdrop = document.getElementById('drawerBackdrop');
+  const chipMenu = document.getElementById('chipMenu');
 
   init();
 
@@ -294,9 +294,9 @@ function renderMeta(n){
 
   return `
     <div class="nodeMeta">
-      <span class="metaChip status ${status}" data-meta="status">${esc(statusLabel)}</span>
-      <span class="metaChip ${isOverdue ? 'overdue' : ''}" data-meta="due">📅 <b>${esc(dueLabel)}</b></span>
-      <span class="metaChip" data-meta="owner">👤 <b>${esc(owner)}</b></span>
+      <span class="metaChip status ${status}" data-meta="status" data-editable="true">${esc(statusLabel)}</span>
+      <span class="metaChip ${isOverdue ? 'overdue' : ''}" data-meta="due" data-editable="true">📅 <b>${esc(dueLabel)}</b></span>
+      <span class="metaChip" data-meta="owner" data-editable="true">👤 <b>${esc(owner)}</b></span>
       ${etaHTML}
     </div>
   `;
@@ -514,7 +514,6 @@ function refreshSelectionUI(){
       editor.style.display = 'block';
       nodeName.value = n.name || '';
       nodeDesc.value = n.desc || '';
-      nodeLabel.value = n.label || '';
       nodeInPorts.value = String(clampInt(n.inPorts ?? 1, 1, 6));
       nodeOutPorts.value = String(clampInt(n.outPorts ?? 1, 1, 6));
       nodeColor.value = n.color || '#B6F23A';
@@ -532,8 +531,8 @@ function refreshSelectionUI(){
   updateEdgeDeleteBtn();
 }
 
-  function applyOwnerToState(ownerVal){
-    const n = getNode(selectedNodeId);
+  function applyOwnerToState(ownerVal, nodeId = selectedNodeId){
+    const n = getNode(nodeId);
     if(!n) return;
     markHistory(200);
     n.owner = ownerVal;
@@ -564,6 +563,126 @@ function refreshSelectionUI(){
   function openPanel(){ document.body.classList.add('show-panel'); }
   function closePanel(){ document.body.classList.remove('show-panel'); }
 
+  function hideChipMenu(){
+    if(chipMenu){
+      chipMenu.style.display = 'none';
+      chipMenu.innerHTML = '';
+    }
+  }
+
+  function positionMenu(anchorRect){
+    if(!chipMenu) return;
+    const margin = 8;
+    let x = anchorRect.left;
+    let y = anchorRect.bottom + margin;
+    const maxX = window.innerWidth - chipMenu.offsetWidth - margin;
+    if(x > maxX) x = maxX;
+    chipMenu.style.left = `${Math.max(margin, x)}px`;
+    chipMenu.style.top = `${y}px`;
+  }
+
+  function showStatusMenu(nodeId, anchorRect){
+    const n = getNode(nodeId);
+    if(!n || !chipMenu) return;
+    chipMenu.innerHTML = `
+      <div class="menuSection">Status</div>
+      ${['backlog','doing','testing','bugfix','done'].map(s => {
+        const label = statusLabelFrom(s);
+        return `<button data-value="${s}">${esc(label)}</button>`;
+      }).join('')}
+    `;
+    chipMenu.style.display = 'grid';
+    positionMenu(anchorRect);
+
+    chipMenu.querySelectorAll('button[data-value]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        markHistory();
+        n.status = btn.dataset.value;
+        syncNodeDOM(n.id);
+        refreshSelectionUI();
+        scheduleSave();
+        hideChipMenu();
+      });
+    });
+  }
+
+  function showOwnerMenu(nodeId, anchorRect){
+    const n = getNode(nodeId);
+    if(!n || !chipMenu) return;
+    const current = sanitize(n.owner || '');
+    chipMenu.innerHTML = `
+      <div class="menuSection">Responsável</div>
+      ${['Murilo','Jean'].map(o => `<button data-owner="${o}">${o}</button>`).join('')}
+      <div class="menuSection">Outro</div>
+      <input type="text" id="menuOwnerInput" placeholder="Digite o nome" value="${esc(current)}">
+      <button data-owner="__apply">Aplicar</button>
+      <button data-owner="__clear">Sem responsável</button>
+    `;
+    chipMenu.style.display = 'grid';
+    positionMenu(anchorRect);
+
+    chipMenu.querySelectorAll('button[data-owner]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = btn.dataset.owner;
+        if(v === '__apply'){
+          const input = chipMenu.querySelector('#menuOwnerInput');
+          const val = sanitize(input?.value || '');
+          applyOwnerToState(val, n.id);
+          updateOwnerUI(val);
+        }else if(v === '__clear'){
+          applyOwnerToState('', n.id);
+          updateOwnerUI('');
+        }else{
+          applyOwnerToState(v, n.id);
+          updateOwnerUI(v);
+        }
+        hideChipMenu();
+      });
+    });
+  }
+
+  function showDueMenu(nodeId, anchorRect){
+    const n = getNode(nodeId);
+    if(!n || !chipMenu) return;
+    const current = n.due || '';
+    chipMenu.innerHTML = `
+      <div class="menuSection">Prazo</div>
+      <input type="date" id="menuDueInput" value="${esc(current)}">
+      <button data-due="__apply">Aplicar</button>
+      <button data-due="__clear">Sem prazo</button>
+    `;
+    chipMenu.style.display = 'grid';
+    positionMenu(anchorRect);
+
+    const input = chipMenu.querySelector('#menuDueInput');
+    input?.addEventListener('change', () => {
+      const val = input.value || '';
+      applyDue(nodeId, val);
+    });
+
+    chipMenu.querySelectorAll('button[data-due]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.due;
+        if(action === '__clear'){
+          applyDue(nodeId, '');
+        }else{
+          const val = input?.value || '';
+          applyDue(nodeId, val);
+        }
+        hideChipMenu();
+      });
+    });
+  }
+
+  function applyDue(nodeId, value){
+    const n = getNode(nodeId);
+    if(!n) return;
+    markHistory(150);
+    n.due = value || '';
+    syncNodeDOM(n.id);
+    scheduleSave();
+  }
+
   function attachHandlers(){
     // Captura cliques para o modo "clique-para-conectar" (roda antes dos handlers dos nodes)
     canvasWrap.addEventListener('pointerdown', (ev) => {
@@ -576,12 +695,14 @@ function refreshSelectionUI(){
 
     canvasWrap.addEventListener('pointerdown', (ev) => {
       if(ev.target === canvasWrap || ev.target === board || ev.target === svg) clearSelection();
+      hideChipMenu();
     });
 
     window.addEventListener('resize', () => {
       updateSvgViewBox();
       rerenderEdgesOnly();
       if(!isMobile()) closePanel();
+      hideChipMenu();
     });
 
     window.addEventListener('keydown', (ev) => {
@@ -630,14 +751,6 @@ function refreshSelectionUI(){
       const n = getNode(selectedNodeId);
       if(!n) return;
       n.desc = nodeDesc.value;
-      syncNodeDOM(n.id);
-      scheduleSave();
-    }));
-
-    nodeLabel.addEventListener('input', throttledInput(() => {
-      const n = getNode(selectedNodeId);
-      if(!n) return;
-      n.label = nodeLabel.value;
       syncNodeDOM(n.id);
       scheduleSave();
     }));
@@ -702,6 +815,28 @@ nodeOwner.addEventListener('input', throttledInput(() => {
       openPanel();
     });
     drawerBackdrop?.addEventListener('click', () => closePanel());
+
+    board.addEventListener('click', (ev) => {
+      const chip = ev.target.closest?.('.metaChip[data-editable="true"]');
+      if(!chip) return;
+      const nodeEl = chip.closest?.('.node');
+      const nodeId = nodeEl?.dataset?.nodeId;
+      if(!nodeId) return;
+      selectNode(nodeId);
+      const rect = chip.getBoundingClientRect();
+      const meta = chip.dataset.meta;
+      hideChipMenu();
+      if(meta === 'status') showStatusMenu(nodeId, rect);
+      else if(meta === 'owner') showOwnerMenu(nodeId, rect);
+      else if(meta === 'due') showDueMenu(nodeId, rect);
+      ev.stopPropagation();
+    });
+
+    document.addEventListener('pointerdown', (ev) => {
+      if(!chipMenu || chipMenu.style.display === 'none') return;
+      if(ev.target.closest?.('.chipMenu')) return;
+      hideChipMenu();
+    });
 
     nodeDue.addEventListener('change', () => {
       const n = getNode(selectedNodeId);
@@ -980,8 +1115,8 @@ function finishConnection(ev){
     updateEdgeDeleteBtn();
   }
 
-  function selectEdge(edgeId){ selectedEdgeId = edgeId; selectedNodeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); }
-  function clearSelection(){ selectedNodeId = null; selectedEdgeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); }
+  function selectEdge(edgeId){ selectedEdgeId = edgeId; selectedNodeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); hideChipMenu(); }
+  function clearSelection(){ selectedNodeId = null; selectedEdgeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); hideChipMenu(); }
 
   function updateEdgeDeleteBtn(){
     if(!edgeDeleteBtn) return;
@@ -1019,6 +1154,11 @@ function finishConnection(ev){
     if(statusEl){
       statusEl.textContent = statusLabelFrom(n.status);
       statusEl.className = 'statusPill ' + statusPillClass(n);
+    }
+
+    const metaWrap = el.querySelector('.nodeMeta');
+    if(metaWrap){
+      metaWrap.outerHTML = renderMeta(n);
     }
 
     rerenderEdgesOnly();

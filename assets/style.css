@@ -313,27 +313,31 @@
   gap:6px;
   margin-top:10px;
 }
-.metaChip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
+    .metaChip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.05);
   font-size:11px;
   color: var(--muted);
-  white-space:nowrap;
-  max-width: 100%;
-}
+      white-space:nowrap;
+      max-width: 100%;
+      cursor: default;
+    }
+    .metaChip[data-editable="true"]{
+      cursor: pointer;
+    }
 .metaChip b{ color: var(--text); font-weight:650; }
 
-.metaChip.status{
-  color: var(--text);
-  border-color: rgba(182,242,58,.20);
-  background: rgba(182,242,58,.10);
-}
-.metaChip.status.backlog{ background: rgba(122,138,133,.16); border-color: rgba(122,138,133,.35); }
+    .metaChip.status{
+      color: var(--text);
+      border-color: rgba(182,242,58,.20);
+      background: rgba(182,242,58,.10);
+    }
+    .metaChip.status.backlog{ background: rgba(36,40,39,.35); border-color: rgba(36,40,39,.70); }
 .metaChip.status.doing{ background: rgba(242,245,243,.08); border-color: rgba(242,245,243,.22); }
 .metaChip.status.testing{ background: rgba(64,156,255,.16); border-color: rgba(64,156,255,.40); }
 .metaChip.status.bugfix{ background: rgba(255,159,67,.16); border-color: rgba(255,159,67,.42); }
@@ -481,6 +485,44 @@
       font-size:13px;
     }
 
+    .chipMenu{
+      position:fixed;
+      z-index:6;
+      min-width:180px;
+      padding:10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(11,15,14,.95);
+      box-shadow: 0 16px 38px rgba(0,0,0,.45);
+      display:none;
+      gap:8px;
+    }
+    .chipMenu button{
+      width:100%;
+      text-align:left;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(20,26,24,.75);
+      color:var(--text);
+      border-radius:10px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-size:12px;
+    }
+    .chipMenu button:hover{
+      border-color: rgba(182,242,58,.45);
+      box-shadow: 0 0 0 3px rgba(182,242,58,.12);
+    }
+    .chipMenu .menuSection{ margin-top:6px; font-size:11px; color:var(--muted); }
+    .chipMenu input[type="date"]{
+      width:100%;
+      margin-top:6px;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(20,26,24,.85);
+      color: var(--text);
+    }
+
     @media (max-width: 980px){
       main{ grid-template-columns: 1fr; position:relative; }
       aside{
@@ -555,7 +597,7 @@
     }
   
     /* Status (card background + header pill) */
-    .node[data-status="backlog"]{ background: rgba(122,138,133,.14); border-color: rgba(122,138,133,.35); }
+    .node[data-status="backlog"]{ background: rgba(36,40,39,.35); border-color: rgba(36,40,39,.70); }
     .node[data-status="doing"]{ background: rgba(242,245,243,.06); border-color: rgba(242,245,243,.20); }
     .node[data-status="testing"]{ background: rgba(64,156,255,.12); border-color: rgba(64,156,255,.35); }
     .node[data-status="bugfix"]{ background: rgba(255,159,67,.12); border-color: rgba(255,159,67,.38); }
@@ -573,7 +615,7 @@
       color: rgba(242,245,243,.92);
       background: rgba(242,245,243,.08);
     }
-    .statusPill.s-backlog{ background: rgba(122,138,133,.18); border-color: rgba(122,138,133,.38); }
+    .statusPill.s-backlog{ background: rgba(36,40,39,.35); border-color: rgba(36,40,39,.70); }
     .statusPill.s-doing{ background: rgba(242,245,243,.10); border-color: rgba(242,245,243,.28); }
     .statusPill.s-testing{ background: rgba(64,156,255,.22); border-color: rgba(64,156,255,.45); }
     .statusPill.s-bugfix{ background: rgba(255,159,67,.22); border-color: rgba(255,159,67,.50); }
