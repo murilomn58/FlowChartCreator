@@ -9,6 +9,7 @@
   let draggingNode = null;
   let dragCandidate = null;
   let connecting = null;
+  let reconnecting = null;
   const DRAG_THRESHOLD = 8;
 
   let view = {
@@ -47,6 +48,8 @@
   const fitBtn = document.getElementById('fitBtn');
   const exportBtn = document.getElementById('exportBtn');
   const exportBtn2 = document.getElementById('exportBtn2');
+  const exportPngBtn = document.getElementById('exportPngBtn');
+  const exportSvgBtn = document.getElementById('exportSvgBtn');
   const clearBtn = document.getElementById('clearBtn');
   const importBtn = document.getElementById('importBtn');
   const fileInput = document.getElementById('fileInput');
@@ -54,6 +57,27 @@
   const openPanelBtn = document.getElementById('openPanelBtn');
   const drawerBackdrop = document.getElementById('drawerBackdrop');
   const chipMenu = document.getElementById('chipMenu');
+  const addStatusBtn = document.getElementById('addStatusBtn');
+  const statusInput = document.getElementById('statusInput');
+  const statusList = document.getElementById('statusList');
+  const addMemberBtn = document.getElementById('addMemberBtn');
+  const memberInput = document.getElementById('memberInput');
+  const memberList = document.getElementById('memberList');
+  const templateButtons = document.querySelectorAll('button[data-template]');
+  const modeSelect = document.getElementById('modeSelect');
+  const edgeEditor = document.getElementById('edgeEditor');
+  const edgeLabelInput = document.getElementById('edgeLabelInput');
+  const edgeOrthoInput = document.getElementById('edgeOrthoInput');
+  const edgeExportBtn = document.getElementById('edgeExportBtn');
+  const edgeClearBtn = document.getElementById('edgeClearBtn');
+  const startHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  const endHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  startHandle.classList.add('edgeHandle');
+  endHandle.classList.add('edgeHandle');
+  startHandle.setAttribute('r', '10');
+  endHandle.setAttribute('r', '10');
+  svg.appendChild(startHandle);
+  svg.appendChild(endHandle);
 
   init();
 
@@ -83,7 +107,13 @@
     return {
       nodes,
       edges,
-      meta: { createdAt: new Date().toISOString(), view: {x:0, y:0, scale:1} }
+      meta: {
+        createdAt: new Date().toISOString(),
+        view: {x:0, y:0, scale:1},
+        statuses: ['backlog','doing','testing','bugfix','done'],
+        members: ['Murilo','Jean'],
+        mode: 'select'
+      }
     };
   }
 
@@ -106,8 +136,8 @@
     };
   }
 
-  function createEdge(from, to, fromPort = 0, toPort = 0){
-    return { id: uid('e'), from, to, fromPort, toPort };
+  function createEdge(from, to, fromPort = 0, toPort = 0, label = ''){
+    return { id: uid('e'), from, to, fromPort, toPort, label };
   }
 
   function loadState(){
@@ -116,6 +146,10 @@
       if(!raw) return null;
       const s = JSON.parse(raw);
       if(!s || !Array.isArray(s.nodes) || !Array.isArray(s.edges)) return null;
+      s.meta = s.meta || {};
+      s.meta.statuses = Array.isArray(s.meta.statuses) ? s.meta.statuses : ['backlog','doing','testing','bugfix','done'];
+      s.meta.members = Array.isArray(s.meta.members) ? s.meta.members : ['Murilo','Jean'];
+      s.meta.mode = s.meta.mode || 'select';
       return s;
     }catch{ return null; }
   }
@@ -284,13 +318,9 @@
 
 
 
-function renderMeta(n){
-  const status = (n.status || 'backlog');
-  const statusLabel = status === 'doing' ? 'Em andamento'
-    : status === 'testing' ? 'Teste'
-    : status === 'bugfix' ? 'Correção de bugs'
-    : status === 'done' ? 'Finalizado'
-    : 'Backlog';
+  function renderMeta(n){
+    const status = (n.status || 'backlog');
+    const statusLabel = statusLabelFrom(status);
 
   const due = (n.due || '').trim();
   const dueLabel = due ? fmtDateBR(due) : 'Sem prazo';
@@ -380,6 +410,17 @@ function renderMeta(n){
       });
       svg.appendChild(path);
       updateEdgePath(e.id);
+
+      // rótulo opcional
+      if(e.label){
+        const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textEl.setAttribute('class', 'edgeLabel');
+        textEl.setAttribute('fill', 'var(--text)');
+        textEl.setAttribute('font-size', '12');
+        textEl.dataset.edgeId = e.id;
+        svg.appendChild(textEl);
+        positionEdgeLabel(e.id);
+      }
     }
 
     if(connecting){
@@ -418,7 +459,12 @@ function renderMeta(n){
     const c1 = {x: A.x + dx, y: A.y};
     const c2 = {x: B.x - dx, y: B.y};
 
-    path.setAttribute('d', `M ${A.x} ${A.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${B.x} ${B.y}`);
+    if(e.ortho){
+      const midX = (A.x + B.x) / 2;
+      path.setAttribute('d', `M ${A.x} ${A.y} L ${midX} ${A.y} L ${midX} ${B.y} L ${B.x} ${B.y}`);
+    }else{
+      path.setAttribute('d', `M ${A.x} ${A.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${B.x} ${B.y}`);
+    }
 
     if(selectedEdgeId === edgeId){
       path.setAttribute('stroke', 'rgba(159,232,112,.98)');
@@ -427,28 +473,67 @@ function renderMeta(n){
       path.setAttribute('stroke', 'url(#edgeGrad)');
       path.setAttribute('stroke-width', '2.4');
     }
+
+    positionEdgeLabel(edgeId);
   }
 
   function updateTempPath(clientX, clientY){
-    if(!connecting) return;
-    const temp = svg.querySelector(`#${CSS.escape(connecting.tempId)}`);
-    if(!temp) return;
+    if(connecting){
+      const temp = svg.querySelector(`#${CSS.escape(connecting.tempId)}`);
+      if(!temp) return;
 
-    const p = clientToCanvas(clientX, clientY);
-    const A = {x: connecting.fromX, y: connecting.fromY};
-    const B = p;
+      const p = clientToCanvas(clientX, clientY);
+      const A = {x: connecting.fromX, y: connecting.fromY};
+      const B = p;
 
-    const distX = Math.abs(B.x - A.x);
-    const distY = Math.abs(B.y - A.y);
-    const totalDist = Math.sqrt(distX * distX + distY * distY);
-    const baseControl = Math.max(60, totalDist * 0.35);
-    const verticalBoost = distY > 100 ? Math.min(distY * 0.25, 80) : 0;
-    const dx = baseControl + verticalBoost;
+      const distX = Math.abs(B.x - A.x);
+      const distY = Math.abs(B.y - A.y);
+      const totalDist = Math.sqrt(distX * distX + distY * distY);
+      const baseControl = Math.max(60, totalDist * 0.35);
+      const verticalBoost = distY > 100 ? Math.min(distY * 0.25, 80) : 0;
+      const dx = baseControl + verticalBoost;
 
-    const c1 = {x: A.x + dx, y: A.y};
-    const c2 = {x: B.x - dx, y: B.y};
+      const c1 = {x: A.x + dx, y: A.y};
+      const c2 = {x: B.x - dx, y: B.y};
 
-    temp.setAttribute('d', `M ${A.x} ${A.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${B.x} ${B.y}`);
+      temp.setAttribute('d', `M ${A.x} ${A.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${B.x} ${B.y}`);
+    } else if(reconnecting){
+      const temp = svg.querySelector('#reconnect_temp') || (() => {
+        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('id', 'reconnect_temp');
+        p.setAttribute('fill', 'none');
+        p.setAttribute('stroke', 'rgba(182,242,58,.9)');
+        p.setAttribute('stroke-width', '2.4');
+        p.setAttribute('stroke-dasharray', '6 6');
+        svg.appendChild(p);
+        return p;
+      })();
+      const fixed = reconnecting.fixedPoint;
+      const p = clientToCanvas(clientX, clientY);
+      const useOrtho = reconnecting.edge?.ortho;
+      if(useOrtho){
+        const midX = (fixed.x + p.x) / 2;
+        temp.setAttribute('d', `M ${fixed.x} ${fixed.y} L ${midX} ${fixed.y} L ${midX} ${p.y} L ${p.x} ${p.y}`);
+      }else{
+        temp.setAttribute('d', `M ${fixed.x} ${fixed.y} L ${p.x} ${p.y}`);
+      }
+    }
+  }
+
+  function positionEdgeLabel(edgeId){
+    const e = state.edges.find(x => x.id === edgeId);
+    if(!e || !e.label) return;
+    const textEl = svg.querySelector(`text.edgeLabel[data-edge-id="${CSS.escape(edgeId)}"]`);
+    if(!textEl) return;
+    const a = getNode(e.from);
+    const b = getNode(e.to);
+    if(!a || !b) return;
+    const A = getPortPos(a, 'out', e.fromPort ?? 0);
+    const B = getPortPos(b, 'in', e.toPort ?? 0);
+    const mid = { x:(A.x+B.x)/2, y:(A.y+B.y)/2 };
+    textEl.setAttribute('x', mid.x);
+    textEl.setAttribute('y', mid.y - 8);
+    textEl.textContent = e.label;
   }
 
 function getPortPos(n, portType, idx){
@@ -498,6 +583,7 @@ function getPortPos(n, portType, idx){
     board.style.transform = t;
     svg.style.transform = t;
     updateEdgeDeleteBtn();
+    updateEdgeHandles();
   }
 
   function rerenderEdgesOnly(){
@@ -505,7 +591,20 @@ function getPortPos(n, portType, idx){
     updateEdgeDeleteBtn();
   }
 
-function refreshSelectionUI(){
+  function setScaleAround(pointX, pointY, newScale){
+    const oldScale = view.scale;
+    const rect = canvasWrap.getBoundingClientRect();
+    const cx = pointX - rect.left;
+    const cy = pointY - rect.top;
+    view.x = cx - (cx - view.x) * (newScale / oldScale);
+    view.y = cy - (cy - view.y) * (newScale / oldScale);
+    view.scale = clamp(newScale, 0.4, 2.5);
+    applyView();
+    rerenderEdgesOnly();
+    scheduleSave();
+  }
+
+  function refreshSelectionUI(){
   // Highlight selected node
   for(const el of board.querySelectorAll('.node')){
     el.classList.toggle('selected', el.dataset.nodeId === selectedNodeId);
@@ -537,7 +636,57 @@ function refreshSelectionUI(){
     if(isMobile()) closePanel();
   }
   updateEdgeDeleteBtn();
+  renderConfigLists();
+
+  // Edge editor
+  if(edgeEditor){
+    if(selectedEdgeId){
+      const e = state.edges.find(x => x.id === selectedEdgeId);
+      if(e){
+        edgeEditor.style.display = 'block';
+        edgeLabelInput.value = e.label || '';
+        edgeOrthoInput.checked = !!e.ortho;
+      }else{
+        edgeEditor.style.display = 'none';
+      }
+    }else{
+      edgeEditor.style.display = 'none';
+    }
+  }
 }
+
+  function renderConfigLists(){
+    if(statusList){
+      statusList.innerHTML = '';
+      for(const s of (state.meta?.statuses || [])){
+        const span = document.createElement('span');
+        span.className = 'metaChip';
+        span.textContent = s;
+        statusList.appendChild(span);
+      }
+    }
+    if(memberList){
+      memberList.innerHTML = '';
+      for(const m of (state.meta?.members || [])){
+        const span = document.createElement('span');
+        span.className = 'metaChip';
+        span.textContent = m;
+        memberList.appendChild(span);
+      }
+    }
+    if(modeSelect){
+      modeSelect.value = state.meta?.mode || 'select';
+    }
+    updateStatusSelect();
+  }
+
+  function updateStatusSelect(){
+    if(!nodeStatus) return;
+    const statuses = state.meta?.statuses || ['backlog','doing','testing','bugfix','done'];
+    const current = nodeStatus.value;
+    nodeStatus.innerHTML = statuses.map(s => `<option value="${esc(s)}">${esc(statusLabelFrom(s))}</option>`).join('');
+    nodeStatus.value = statuses.includes(current) ? current : statuses[0] || 'backlog';
+  }
 
   function applyOwnerToState(ownerVal, nodeId = selectedNodeId){
     const n = getNode(nodeId);
@@ -592,9 +741,10 @@ function refreshSelectionUI(){
   function showStatusMenu(nodeId, anchorRect){
     const n = getNode(nodeId);
     if(!n || !chipMenu) return;
+    const statuses = state.meta?.statuses || ['backlog','doing','testing','bugfix','done'];
     chipMenu.innerHTML = `
       <div class="menuSection">Status</div>
-      ${['backlog','doing','testing','bugfix','done'].map(s => {
+      ${statuses.map(s => {
         const label = statusLabelFrom(s);
         return `<button data-value="${s}">${esc(label)}</button>`;
       }).join('')}
@@ -618,9 +768,10 @@ function refreshSelectionUI(){
     const n = getNode(nodeId);
     if(!n || !chipMenu) return;
     const current = sanitize(n.owner || '');
+    const members = state.meta?.members || ['Murilo','Jean'];
     chipMenu.innerHTML = `
       <div class="menuSection">Responsável</div>
-      ${['Murilo','Jean'].map(o => `<button data-owner="${o}">${o}</button>`).join('')}
+      ${members.map(o => `<button data-owner="${o}">${o}</button>`).join('')}
       <div class="menuSection">Outro</div>
       <input type="text" id="menuOwnerInput" placeholder="Digite o nome" value="${esc(current)}">
       <button data-owner="__apply">Aplicar</button>
@@ -873,6 +1024,23 @@ nodeStatus.addEventListener('change', () => {
   scheduleSave();
 });
 
+edgeLabelInput?.addEventListener('input', throttledInput(() => {
+  const e = state.edges.find(x => x.id === selectedEdgeId);
+  if(!e) return;
+  e.label = edgeLabelInput.value;
+  updateEdgePath(e.id);
+  scheduleSave();
+}, 200));
+
+edgeOrthoInput?.addEventListener('change', () => {
+  const e = state.edges.find(x => x.id === selectedEdgeId);
+  if(!e) return;
+  markHistory();
+  e.ortho = edgeOrthoInput.checked;
+  updateEdgePath(e.id);
+  scheduleSave();
+});
+
     dupBtn.addEventListener('click', () => { if(selectedNodeId) duplicateNode(selectedNodeId); });
     delBtn.addEventListener('click', () => { if(selectedNodeId) removeNode(selectedNodeId); });
 
@@ -881,6 +1049,12 @@ nodeStatus.addEventListener('change', () => {
     fitBtn.addEventListener('click', fitView);
     exportBtn.addEventListener('click', exportJSON);
     exportBtn2.addEventListener('click', exportJSON);
+    exportPngBtn?.addEventListener('click', exportPNG);
+    exportSvgBtn?.addEventListener('click', exportSVG);
+    edgeExportBtn?.addEventListener('click', exportSelectionJSON);
+    edgeClearBtn?.addEventListener('click', () => { if(selectedEdgeId) removeEdge(selectedEdgeId); });
+    startHandle.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); startReconnect('from', ev); });
+    endHandle.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); startReconnect('to', ev); });
     clearBtn.addEventListener('click', () => {
       if(confirm('Limpar tudo?')){
         state = defaultState();
@@ -892,6 +1066,41 @@ nodeStatus.addEventListener('change', () => {
       }
     });
     importBtn.addEventListener('click', () => fileInput.click());
+    modeSelect?.addEventListener('change', () => {
+      state.meta = state.meta || {};
+      state.meta.mode = modeSelect.value;
+      scheduleSave();
+    });
+
+    addStatusBtn?.addEventListener('click', () => {
+      const val = sanitize(statusInput.value || '');
+      if(!val) return;
+      state.meta = state.meta || {};
+      const list = state.meta.statuses || [];
+      if(!list.includes(val)){
+        list.push(val);
+        state.meta.statuses = list;
+        statusInput.value = '';
+        renderConfigLists();
+        scheduleSave();
+      }
+    });
+    addMemberBtn?.addEventListener('click', () => {
+      const val = sanitize(memberInput.value || '');
+      if(!val) return;
+      state.meta = state.meta || {};
+      const list = state.meta.members || [];
+      if(!list.includes(val)){
+        list.push(val);
+        state.meta.members = list;
+        memberInput.value = '';
+        renderConfigLists();
+        scheduleSave();
+      }
+    });
+    templateButtons.forEach(btn => {
+      btn.addEventListener('click', () => loadTemplate(btn.dataset.template));
+    });
 
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files && fileInput.files[0];
@@ -919,9 +1128,11 @@ nodeStatus.addEventListener('change', () => {
       if(ev.button !== 0) return;
       const onNode = ev.target.closest && ev.target.closest('.node');
       const onPort = ev.target.closest && ev.target.closest('.port');
-      if(onNode || onPort) return;
-      panning = { startX: ev.clientX, startY: ev.clientY, x: view.x, y: view.y };
-      canvasWrap.setPointerCapture(ev.pointerId);
+      const mode = state.meta?.mode || 'select';
+      if(mode === 'hand' || (!onNode && !onPort)){
+        panning = { startX: ev.clientX, startY: ev.clientY, x: view.x, y: view.y, pointerId: ev.pointerId };
+        try{ canvasWrap.setPointerCapture(ev.pointerId); }catch{}
+      }
     });
 
     window.addEventListener('pointermove', (ev) => {
@@ -935,10 +1146,15 @@ nodeStatus.addEventListener('change', () => {
         maybeStartDragging(ev);
       }
       if(connecting) updateTempPath(ev.clientX, ev.clientY);
+      if(reconnecting) updateTempPath(ev.clientX, ev.clientY);
       if(draggingNode) moveNodeDuringDrag(ev);
     });
 
     window.addEventListener('pointerup', (ev) => {
+      if(reconnecting){
+        finishReconnect(ev);
+        reconnecting = null;
+      }
       panning = null;
       if(connecting && connecting.mode === 'drag') finishConnection(ev);
       if(draggingNode) stopNodeDrag(ev);
@@ -950,25 +1166,57 @@ nodeStatus.addEventListener('change', () => {
       if(!(ev.ctrlKey || ev.metaKey)) return;
       ev.preventDefault();
       const delta = -Math.sign(ev.deltaY) * 0.1;
-      const oldScale = view.scale;
-      const newScale = clamp(oldScale * (1 + delta), 0.5, 2);
-      if(newScale === oldScale) return;
-
-      const rect = canvasWrap.getBoundingClientRect();
-      const cx = ev.clientX - rect.left;
-      const cy = ev.clientY - rect.top;
-      view.x = cx - (cx - view.x) * (newScale / oldScale);
-      view.y = cy - (cy - view.y) * (newScale / oldScale);
-      view.scale = newScale;
-      applyView();
-      scheduleSave();
-      rerenderEdgesOnly();
+      const newScale = clamp(view.scale * (1 + delta), 0.5, 2.5);
+      if(newScale === view.scale) return;
+      setScaleAround(ev.clientX, ev.clientY, newScale);
     }, {passive:false});
+
+    // Double tap para zoom
+    let lastTap = 0;
+    canvasWrap.addEventListener('pointerdown', (ev) => {
+      const now = Date.now();
+      if(now - lastTap < 300){
+        setScaleAround(ev.clientX, ev.clientY, view.scale * 1.2);
+      }
+      lastTap = now;
+    });
+
+    // Pinch zoom (dois dedos)
+    const pinchPointers = new Map();
+    canvasWrap.addEventListener('pointerdown', (ev) => {
+      pinchPointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+    });
+    canvasWrap.addEventListener('pointermove', (ev) => {
+      if(!pinchPointers.has(ev.pointerId)) return;
+      pinchPointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      if(pinchPointers.size === 2){
+        const pts = Array.from(pinchPointers.values());
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if(!canvasWrap._pinchStart){
+          canvasWrap._pinchStart = {dist, scale: view.scale};
+        }else{
+          const factor = dist / canvasWrap._pinchStart.dist;
+          const newScale = clamp(canvasWrap._pinchStart.scale * factor, 0.4, 2.5);
+          const midX = (pts[0].x + pts[1].x) / 2;
+          const midY = (pts[0].y + pts[1].y) / 2;
+          setScaleAround(midX, midY, newScale);
+        }
+      }
+    });
+    canvasWrap.addEventListener('pointerup', (ev) => {
+      pinchPointers.delete(ev.pointerId);
+      if(pinchPointers.size < 2) canvasWrap._pinchStart = null;
+    });
+    canvasWrap.addEventListener('pointercancel', (ev) => {
+      pinchPointers.delete(ev.pointerId);
+      canvasWrap._pinchStart = null;
+    });
   }
 
   function startNodeDrag(ev, nodeId){
     const n = getNode(nodeId);
     if(!n) return;
+    if((state.meta?.mode || 'select') === 'hand') return; // em modo mão, não arrasta nodes
     const p = clientToCanvas(ev.clientX, ev.clientY);
     dragCandidate = {
       id: nodeId,
@@ -1010,6 +1258,50 @@ nodeStatus.addEventListener('change', () => {
     draggingNode = null;
     dragCandidate = null;
     try{ canvasWrap.releasePointerCapture(ev.pointerId); }catch{}
+  }
+
+  function startReconnect(handle, ev){
+    const e = state.edges.find(x => x.id === selectedEdgeId);
+    if(!e) return;
+    reconnecting = {
+      edgeId: e.id,
+      handle,
+      edge: e,
+      fixedPoint: handle === 'from'
+        ? getPortPos(getNode(e.to), 'in', e.toPort ?? 0)
+        : getPortPos(getNode(e.from), 'out', e.fromPort ?? 0)
+    };
+    updateTempPath(ev.clientX, ev.clientY);
+  }
+
+  function finishReconnect(ev){
+    const temp = svg.querySelector('#reconnect_temp');
+    temp?.remove();
+    if(!reconnecting) return;
+    const e = state.edges.find(x => x.id === reconnecting.edgeId);
+    if(!e) return;
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    const nodeEl = el?.closest?.('.node');
+    if(nodeEl){
+      const nodeId = nodeEl.dataset.nodeId;
+      const node = getNode(nodeId);
+      if(node){
+        markHistory();
+        if(reconnecting.handle === 'from'){
+          e.from = nodeId;
+          e.fromPort = 0;
+        }else{
+          e.to = nodeId;
+          e.toPort = 0;
+        }
+        renderAll();
+        selectEdge(e.id);
+        scheduleSave();
+        showToast('Seta reconectada');
+        return;
+      }
+    }
+    showToast('Reconexão cancelada');
   }
 
 function startConnection(ev, fromNodeId, fromPortIdx, mode = 'click'){
@@ -1143,6 +1435,7 @@ function finishConnection(ev){
     const paths = svg.querySelectorAll('path.edgePath');
     paths.forEach(p => p.classList.toggle('selected', p.dataset.edgeId === selectedEdgeId));
     updateEdgeDeleteBtn();
+    updateEdgeHandles();
   }
 
   function selectEdge(edgeId){ selectedEdgeId = edgeId; selectedNodeId = null; updateEdgeSelectionDOM(); refreshSelectionUI(); hideChipMenu(); }
@@ -1169,6 +1462,40 @@ function finishConnection(ev){
     edgeDeleteBtn.style.display = 'block';
   }
 
+  function updateEdgeHandles(){
+    if(!startHandle || !endHandle){
+      return;
+    }
+    if(!selectedEdgeId){
+      startHandle.style.display = 'none';
+      endHandle.style.display = 'none';
+      return;
+    }
+    const e = state.edges.find(x => x.id === selectedEdgeId);
+    if(!e){
+      startHandle.style.display = 'none';
+      endHandle.style.display = 'none';
+      return;
+    }
+    const a = getNode(e.from);
+    const b = getNode(e.to);
+    if(!a || !b){
+      startHandle.style.display = 'none';
+      endHandle.style.display = 'none';
+      return;
+    }
+    const A = getPortPos(a, 'out', e.fromPort ?? 0);
+    const B = getPortPos(b, 'in', e.toPort ?? 0);
+    startHandle.setAttribute('cx', A.x);
+    startHandle.setAttribute('cy', A.y);
+    endHandle.setAttribute('cx', B.x);
+    endHandle.setAttribute('cy', B.y);
+    startHandle.style.display = 'block';
+    endHandle.style.display = 'block';
+    startHandle.dataset.handle = 'from';
+    endHandle.dataset.handle = 'to';
+  }
+
   function syncNodeDOM(nodeId){
     const n = getNode(nodeId);
     const el = board.querySelector(`.node[data-node-id="${CSS.escape(nodeId)}"]`);
@@ -1189,6 +1516,7 @@ function finishConnection(ev){
     const metaWrap = el.querySelector('.nodeMeta');
     if(metaWrap){
       metaWrap.outerHTML = renderMeta(n);
+      updateEdgeHandles();
     }
 
     rerenderEdgesOnly();
@@ -1334,6 +1662,93 @@ function createNextStep(fromNodeId){
     showToast('Exportado');
   }
 
+  function exportSelectionJSON(){
+    let data = null;
+    if(selectedNodeId){
+      const node = getNode(selectedNodeId);
+      if(!node) return showToast('Nada selecionado');
+      const edges = state.edges.filter(e => e.from === node.id || e.to === node.id);
+      const nodes = [node];
+      // inclui nós vizinhos para manter referência
+      for(const e of edges){
+        const otherId = e.from === node.id ? e.to : e.from;
+        const o = getNode(otherId);
+        if(o && !nodes.some(n => n.id === o.id)) nodes.push(o);
+      }
+      data = { nodes, edges, meta: { view } };
+    } else if(selectedEdgeId){
+      const e = state.edges.find(x => x.id === selectedEdgeId);
+      if(!e) return showToast('Nada selecionado');
+      const a = getNode(e.from);
+      const b = getNode(e.to);
+      const nodes = [a,b].filter(Boolean);
+      data = { nodes, edges:[e], meta:{view} };
+    } else {
+      return showToast('Selecione um nó ou seta');
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'flowchart-selection.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    showToast('Seleção exportada');
+  }
+
+  function exportSVG(){
+    updateNodeMetricsFromDOM();
+    renderEdges();
+    const clone = svg.cloneNode(true);
+    clone.removeAttribute('style');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(clone);
+    const blob = new Blob([source], {type:'image/svg+xml'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'flowchart.svg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    showToast('SVG exportado');
+  }
+
+  function exportPNG(){
+    // Render o SVG em canvas para PNG (inclui apenas edges; nodes via HTML não são capturados).
+    // Aviso: esta versão exporta as linhas; para nodes completos seria preciso usar html2canvas/dom-to-image.
+    updateNodeMetricsFromDOM();
+    renderEdges();
+    const serializer = new XMLSerializer();
+    const source = serializer.serializeToString(svg);
+    const img = new Image();
+    const svgBlob = new Blob([source], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = svg.clientWidth;
+      canvas.height = svg.clientHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0B0F0E';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'flowchart.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    showToast('PNG exportado (somente setas)');
+  }
+
   function fitView(){
     if(state.nodes.length === 0){
       view = {x:0,y:0,scale:1};
@@ -1424,6 +1839,57 @@ function chipStyleFromColor(hex){
     };
   }
 
+  function loadTemplate(name){
+    const t = String(name || '').toLowerCase();
+    const templates = {
+      processo: [
+        ['Ideação','Descobrir problema','Backlog'],
+        ['Planejar','Planejamento do fluxo','doing'],
+        ['Executar','Execução das etapas','testing'],
+        ['Validar','Validação e QA','bugfix'],
+        ['Finalizar','Entrega','done']
+      ],
+      kanban: [
+        ['To Do','Itens a iniciar','backlog'],
+        ['Doing','Itens em andamento','doing'],
+        ['Review','Revisão','testing'],
+        ['Done','Concluído','done']
+      ],
+      etl: [
+        ['Extract','Extrair dados','backlog'],
+        ['Transform','Transformar dados','doing'],
+        ['Load','Carregar em destino','testing'],
+        ['Monitor','Monitorar pipeline','bugfix']
+      ],
+      pipeline: [
+        ['Ingestão','Captura de fontes','backlog'],
+        ['Curadoria','Limpeza/curadoria','doing'],
+        ['Modelagem','Modelos e métricas','testing'],
+        ['Deploy BI','Publicação dashboards','done']
+      ],
+      sac: [
+        ['Abertura','Registrar chamado','backlog'],
+        ['Triagem','Classificar prioridade','doing'],
+        ['Atendimento','Resolver solicitação','testing'],
+        ['Feedback','Coletar satisfação','done']
+      ]
+    };
+    const list = templates[t];
+    if(!list) return;
+    markHistory();
+    state.nodes = list.map((item, idx) => createNode(item[0], item[1], item[2], 120 + idx*280, 150));
+    state.edges = [];
+    for(let i=0;i<state.nodes.length-1;i++){
+      state.edges.push(createEdge(state.nodes[i].id, state.nodes[i+1].id, 0, 0));
+    }
+    view = {x:0,y:0,scale:1};
+    clearSelection();
+    renderAll();
+    fitView();
+    scheduleSave();
+    showToast('Template aplicado');
+  }
+
   function uid(prefix){ return `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`; }
   function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
   function clampInt(v, a, b){ return Math.max(a, Math.min(b, Math.round(Number(v) || a))); }
@@ -1431,11 +1897,12 @@ function chipStyleFromColor(hex){
   
   function statusLabelFrom(status){
     const s = (status || 'backlog');
-    return s === 'doing' ? 'Em andamento'
-      : s === 'testing' ? 'Teste'
-      : s === 'bugfix' ? 'Correção de bugs'
-      : s === 'done' ? 'Finalizado'
-      : 'Backlog';
+    if(['doing','em andamento'].includes(s)) return 'Em andamento';
+    if(['testing','teste'].includes(s)) return 'Teste';
+    if(['bugfix','correção de bugs'].includes(s)) return 'Correção de bugs';
+    if(s === 'done' || s === 'finalizado') return 'Finalizado';
+    if(s === 'backlog') return 'Backlog';
+    return s;
   }
   function statusPillClass(n){
     const s = (n?.status || 'backlog');

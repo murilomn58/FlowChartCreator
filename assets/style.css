@@ -125,6 +125,7 @@
       box-shadow: var(--shadow);
       margin-bottom:14px;
     }
+    .panel h2 + #edgeEditor h2{ margin-top:0; }
 
     .panel h2{ margin:0 0 12px 0; font-size:13px; letter-spacing:.3px; color:var(--text); }
     .small{ font-size:12px; color:var(--muted); line-height:1.4; }
@@ -623,3 +624,17 @@
 
     /* Edge selection */
     svg path.edgePath.selected{ stroke-width: 3.5; filter: url(#glow); }
+    text.edgeLabel{
+      pointer-events:none;
+      fill: var(--text);
+      font-family: inherit;
+    }
+    .edgeHandle{
+      cursor: crosshair;
+      stroke: rgba(182,242,58,.85);
+      fill: rgba(11,15,14,.85);
+      stroke-width: 2;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,.35));
+      display:none;
+      pointer-events: auto;
+    }

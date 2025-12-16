@@ -22,7 +22,16 @@
         <button class="btn" id="autoLayoutBtn">Auto Layout</button>
         <button class="btn" id="fitBtn">Fit</button>
         <button class="btn" id="exportBtn">Exportar</button>
+        <button class="btn" id="exportPngBtn">PNG</button>
+        <button class="btn" id="exportSvgBtn">SVG</button>
         <button class="btn danger" id="clearBtn">Limpar</button>
+        <div style="display:flex; gap:6px; align-items:center; margin-left:12px;">
+          <label style="color:#c7d0cc; font-size:12px;">Modo</label>
+          <select id="modeSelect" style="width:auto; min-width:120px;">
+            <option value="select">Seleção</option>
+            <option value="hand">Mão</option>
+          </select>
+        </div>
       </div>
     </header>
 
@@ -32,6 +41,20 @@
           <h2>Etapa Selecionada</h2>
           <div class="small" id="noneSelected">Clique em uma etapa para editar.</div>
           <div id="editor" style="display:none;">
+
+          <div id="edgeEditor" style="display:none; margin-top:12px;">
+            <h2>Seta Selecionada</h2>
+            <label for="edgeLabelInput">R?tulo</label>
+            <input id="edgeLabelInput" type="text" placeholder="Ex: Sim/N?o">
+            <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+              <input id="edgeOrthoInput" type="checkbox" style="width:auto;"> Seta ortogonal (90?)
+            </label>
+            <div class="row" style="margin-top:12px;">
+              <button class="btn" id="edgeExportBtn" style="flex:1;">Exportar sele??o</button>
+              <button class="btn danger" id="edgeClearBtn" style="flex:1;">Remover</button>
+            </div>
+          </div>
+
             <label for="nodeName">Nome</label>
             <input id="nodeName" type="text" placeholder="Nome da etapa">
 
@@ -90,7 +113,34 @@
           </div>
         </div>
 
+        
         <div class="panel">
+          <h2>Configura??es r?pidas</h2>
+          <div class="small">Adicione status e membros que aparecer?o nos chips.</div>
+          <label for="statusInput">Novo status</label>
+          <div class="row">
+            <input id="statusInput" type="text" placeholder="Ex: Revis?o">
+            <button class="btn" id="addStatusBtn" style="white-space:nowrap;">Adicionar</button>
+          </div>
+          <div class="small" id="statusList" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+          <label for="memberInput" style="margin-top:12px;">Novo membro</label>
+          <div class="row">
+            <input id="memberInput" type="text" placeholder="Ex: Ana">
+            <button class="btn" id="addMemberBtn" style="white-space:nowrap;">Adicionar</button>
+          </div>
+          <div class="small" id="memberList" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+
+          <h2 style="margin-top:16px;">Templates</h2>
+          <div class="row" style="flex-wrap:wrap; gap:8px;">
+            <button class="btn" data-template="processo">Processo</button>
+            <button class="btn" data-template="kanban">Kanban</button>
+            <button class="btn" data-template="etl">ETL</button>
+            <button class="btn" data-template="pipeline">Pipeline BI</button>
+            <button class="btn" data-template="sac">SAC</button>
+          </div>
+        </div>
+<div class="panel">
           <h2>Dados</h2>
           <div class="small">Salvo automaticamente no navegador.</div>
           <div class="row" style="margin-top:12px;">
